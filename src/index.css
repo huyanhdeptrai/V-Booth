@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-display: 'Fraunces', Georgia, serif;
+    --font-body: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+    --font-mono: 'Space Mono', monospace;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background-color: #FFFDF9;
+    color: #1E1B18;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  h1, h2, h3, .font-serif-heritage {
+    font-family: var(--font-display);
+  }
+
+  .font-mono-tag {
+    font-family: var(--font-mono);
+  }
+}
+
+/* Tactile & Retro Photobooth Micro-styles */
+.retro-border {
+  border: 1px solid rgba(254, 205, 211, 0.7);
+}
+
+.retro-shadow {
+  box-shadow: 3px 3px 0px #FF7597;
+}
+
+.retro-shadow-sm {
+  box-shadow: 2px 2px 0px #FF7597;
+}
+
+.retro-shadow-dark {
+  box-shadow: 3px 3px 0px #881337;
+}
+
+.tactile-press {
+  transition: transform 0.12s ease-out, box-shadow 0.12s ease-out;
+}
+.tactile-press:active {
+  transform: translate(1.5px, 1.5px) scale(0.98);
+  box-shadow: 1px 1px 0px #FF7597;
+}
+
+/* Subtle Film Grain */
+.film-grain {
+  background-image: radial-gradient(rgba(136, 19, 55, 0.04) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+/* Photobooth Flash Simulation */
+@keyframes cameraFlash {
+  0% { opacity: 0; }
+  15% { opacity: 0.95; }
+  100% { opacity: 0; }
+}
+
+.flash-active {
+  animation: cameraFlash 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Safe area bottom padding for iPhone navigation bars */
+.pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/* Custom horizontal hide-scrollbar */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

@@ -1,21 +1,19 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { PhotoBoothResult } from './PhotoBoothCabin';
-import { PHOTOBOOTH_FRAME_STYLES, PHOTOBOOTH_STICKERS } from '../data/garments';
+import {
+  PHOTOBOOTH_FRAME_STYLES,
+  PHOTOBOOTH_STICKERS,
+  BOTTOMS_DATABASE,
+  FOOTWEAR_DATABASE
+} from '../data/garments';
 import { AvatarCanvas } from './AvatarCanvas';
+import { GarmentVisual } from './GarmentVisual';
 import {
   Download,
   Share2,
   RotateCcw,
-  Sparkles,
-  Printer,
   Check,
-  ShoppingBag,
-  ExternalLink,
-  Store,
-  Shirt,
-  Calendar,
-  MapPin,
-  Heart
+  ExternalLink
 } from 'lucide-react';
 
 interface PhotoStripPrinterProps {
@@ -55,6 +53,44 @@ export const PhotoStripPrinter: React.FC<PhotoStripPrinterProps> = ({
     }
   };
 
+  // Derive consolidated Gemini composite attributes
+  const comp = result.config.geminiComposite;
+  const finalTitle = comp?.photobooth_badge?.title || result.assessment.title;
+  const finalScore = comp?.cultural_guardrail?.score ?? result.assessment.culturalScore;
+  const finalHistoryFact = comp?.photobooth_badge?.history_fact || result.config.historicalInsight || result.assessment.historicalReason;
+
+  const curBottom =
+    BOTTOMS_DATABASE.find((b) => b.id === result.config.selectedBottomId) || BOTTOMS_DATABASE[0];
+  const curFootwear =
+    FOOTWEAR_DATABASE.find((f) => f.id === result.config.selectedFootwearId) || FOOTWEAR_DATABASE[0];
+
+  const breakdownItems = comp?.shopping_breakdown?.items || [
+    {
+      name: `${result.config.garment.name} (${result.config.fabricId})`,
+      action: 'THUÊ' as const,
+      price_est: result.config.garment.baseRentalPrice,
+      shopee_keyword: `thuê ${result.config.garment.name.toLowerCase()} việt phục`
+    },
+    {
+      name: `Phần dưới: ${curBottom.name}`,
+      action: 'MUA_SHOPEE' as const,
+      price_est: curBottom.estimatedPrice,
+      shopee_keyword: curBottom.searchKeyword
+    },
+    {
+      name: `Giày dép: ${curFootwear.name}`,
+      action: 'MUA_SHOPEE' as const,
+      price_est: curFootwear.estimatedPrice,
+      shopee_keyword: curFootwear.searchKeyword
+    },
+    ...result.config.selectedAccessories.map((accId) => ({
+      name: accId,
+      action: 'MUA_SHOPEE' as const,
+      price_est: 45000,
+      shopee_keyword: accId
+    }))
+  ];
+
   // Render photo strip directly onto HTML5 Canvas API for crisp HD PNG download
   const handleDownloadHD = async () => {
     setIsExporting(true);
@@ -65,7 +101,7 @@ export const PhotoStripPrinter: React.FC<PhotoStripPrinterProps> = ({
       if (!ctx) return;
 
       const width = 600;
-      const height = 1800;
+      const height = 1920;
       canvas.width = width;
       canvas.height = height;
 
@@ -113,30 +149,114 @@ export const PhotoStripPrinter: React.FC<PhotoStripPrinterProps> = ({
         ctx.fillStyle = grad;
         ctx.fillRect(startX + 8, startY + 8, frameWidth - 16, frameHeight - 16);
 
-        // Silhouette representation with garment color
-        ctx.fillStyle = garmentColor;
-        ctx.beginPath();
-        // Stylized Vietnamese garment torso
-        ctx.roundRect(startX + 180, startY + 120, 160, 210, 16);
-        ctx.fill();
+        const frameData = result.capturedFrames[i];
+        if (frameData?.imageUrl) {
+          // Render Real AI Virtual Try-On Frame onto Canvas
+          await new Promise<void>((resolve) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+              ctx.save();
+              ctx.beginPath();
+              ctx.roundRect(startX + 8, startY + 8, frameWidth - 16, frameHeight - 16, 4);
+              ctx.clip();
+              ctx.drawImage(img, startX + 8, startY + 8, frameWidth - 16, frameHeight - 16);
+              ctx.restore();
+              resolve();
+            };
+            img.onerror = () => resolve();
+            img.src = frameData.imageUrl!;
+          });
+        } else {
+          // Center position for the fashion mannequin
+          const cx = startX + frameWidth / 2;
 
-        // Collar band
-        ctx.fillStyle = '#FEF08A';
-        ctx.fillRect(startX + 235, startY + 105, 50, 18);
+          // 1. Slender White Silk Trousers
+          ctx.fillStyle = '#FAF8F5';
+          ctx.strokeStyle = '#E2DDD5';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(cx - 30, startY + 230);
+          ctx.lineTo(cx - 38, startY + 315);
+          ctx.lineTo(cx - 10, startY + 315);
+          ctx.lineTo(cx - 4, startY + 250);
+          ctx.lineTo(cx + 4, startY + 250);
+          ctx.lineTo(cx + 10, startY + 315);
+          ctx.lineTo(cx + 38, startY + 315);
+          ctx.lineTo(cx + 30, startY + 230);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
 
-        // Face & Head
-        ctx.fillStyle = '#FFDFC4';
-        ctx.beginPath();
-        ctx.arc(startX + 260, startY + 75, 34, 0, Math.PI * 2);
-        ctx.fill();
+          // 2. Footwear (Chunky Sneaker or Minimalist Shoes)
+          ctx.fillStyle = '#FFFFFF';
+          ctx.strokeStyle = '#9CA3AF';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.roundRect(cx - 44, startY + 315, 34, 15, 4);
+          ctx.roundRect(cx + 10, startY + 315, 34, 15, 4);
+          ctx.fill();
+          ctx.stroke();
 
-        // Hat or Hair
-        ctx.fillStyle = '#24140D';
-        ctx.beginPath();
-        ctx.arc(startX + 260, startY + 58, 26, Math.PI, 0);
-        ctx.fill();
+          // 3. Fashion Traditional Robe Body
+          ctx.fillStyle = garmentColor;
+          ctx.strokeStyle = '#6B0C23';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(cx - 24, startY + 115);
+          ctx.lineTo(cx - 52, startY + 145);
+          ctx.lineTo(cx - 48, startY + 275);
+          ctx.quadraticCurveTo(cx, startY + 290, cx + 48, startY + 275);
+          ctx.lineTo(cx + 52, startY + 145);
+          ctx.lineTo(cx + 24, startY + 115);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
 
-        // Pose caption
+          // Robe Sleeves
+          ctx.beginPath();
+          ctx.moveTo(cx - 52, startY + 145);
+          ctx.lineTo(cx - 85, startY + 180);
+          ctx.lineTo(cx - 80, startY + 235);
+          ctx.lineTo(cx - 50, startY + 225);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(cx + 52, startY + 145);
+          ctx.lineTo(cx + 85, startY + 180);
+          ctx.lineTo(cx + 80, startY + 235);
+          ctx.lineTo(cx + 50, startY + 225);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          // 4. Stand Collar (Cổ Lập Lĩnh) & Gold Accent
+          ctx.fillStyle = '#FEF08A';
+          ctx.fillRect(cx - 16, startY + 106, 32, 10);
+          ctx.strokeStyle = '#D97706';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(cx - 16, startY + 106, 32, 10);
+
+          // 5. Statuesque Sculpted Head & Neck
+          ctx.fillStyle = '#FFF0E5';
+          ctx.fillRect(cx - 8, startY + 92, 16, 16);
+          ctx.beginPath();
+          ctx.ellipse(cx, startY + 76, 16, 22, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Minimalist Chic Hair / Headwear
+          ctx.fillStyle = '#24140D';
+          ctx.beginPath();
+          ctx.arc(cx, startY + 68, 17, Math.PI, 0);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(cx, startY + 52, 9, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // 6. Pose caption
         ctx.fillStyle = selectedFrameStyle.textColor;
         ctx.font = 'bold 13px "Be Vietnam Pro", sans-serif';
         ctx.textAlign = 'left';
@@ -147,21 +267,82 @@ export const PhotoStripPrinter: React.FC<PhotoStripPrinterProps> = ({
 
       // 5. AI Exclusive Title & Cultural Score Badge
       ctx.fillStyle = selectedFrameStyle.textColor;
-      ctx.font = 'italic bold 26px "Fraunces", Georgia, serif';
+      ctx.font = 'italic bold 25px "Fraunces", Georgia, serif';
       ctx.textAlign = 'center';
-      ctx.fillText(`"${result.assessment.title}"`, width / 2, height - 125);
+      ctx.fillText(`"${finalTitle}"`, width / 2, startY + 28);
 
       ctx.font = '13px "Be Vietnam Pro", sans-serif';
       ctx.fillText(
-        `AI Cultural Score: ${result.assessment.culturalScore}/100 · ${result.assessment.badge}`,
+        `AI Cultural Score: ${finalScore}/100 · ${result.assessment.badge}`,
         width / 2,
-        height - 98
+        startY + 48
       );
 
+      // Quẻ Bản Mệnh Ngũ Hành Tem Mộc on Canvas (nếu có)
+      let insightOffset = 64;
+      if (result.config.horoscopeProfile) {
+        const hp = result.config.horoscopeProfile;
+        ctx.fillStyle = '#881337';
+        ctx.font = 'bold 11px "Space Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(
+          `🔮 BẢN MỆNH: ${hp.canChi.toUpperCase()} · ${hp.napAm.toUpperCase()} (MỆNH ${hp.element.toUpperCase()})`,
+          width / 2,
+          startY + 66
+        );
+        insightOffset = 78;
+      }
+
+      // AI Historical Insight Box on Canvas (Gemini Research)
+      const rawInsight = finalHistoryFact;
+      if (rawInsight) {
+        const boxX = 40;
+        const boxY = startY + insightOffset;
+        const boxW = 520;
+        const boxH = 88;
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';
+        ctx.strokeStyle = selectedFrameStyle.borderColor;
+        ctx.lineWidth = 1;
+        if (typeof (ctx as any).roundRect === 'function') {
+          ctx.beginPath();
+          (ctx as any).roundRect(boxX, boxY, boxW, boxH, 10);
+          ctx.fill();
+          ctx.stroke();
+        } else {
+          ctx.fillRect(boxX, boxY, boxW, boxH);
+          ctx.strokeRect(boxX, boxY, boxW, boxH);
+        }
+
+        ctx.fillStyle = selectedFrameStyle.textColor;
+        ctx.font = 'bold 10px "Space Mono", monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText('✦ INSIGHT DI SẢN (GEMINI AI RESEARCH)', boxX + 16, boxY + 20);
+
+        ctx.font = 'italic 12px "Be Vietnam Pro", sans-serif';
+        const words = `"${rawInsight}"`.split(' ');
+        let curLine = '';
+        let lineY = boxY + 40;
+        for (let w = 0; w < words.length; w++) {
+          const testLine = curLine + words[w] + ' ';
+          const testW = ctx.measureText(testLine).width;
+          if (testW > boxW - 32 && w > 0) {
+            ctx.fillText(curLine.trim(), boxX + 16, lineY);
+            curLine = words[w] + ' ';
+            lineY += 18;
+          } else {
+            curLine = testLine;
+          }
+        }
+        ctx.fillText(curLine.trim(), boxX + 16, lineY);
+      }
+
       // 6. Barcode & Serial number
+      ctx.fillStyle = selectedFrameStyle.textColor;
       ctx.font = '11px "Space Mono", monospace';
-      ctx.fillText('||| | ||||| || |||| ||||| ||| ||||| ||', width / 2, height - 60);
-      ctx.fillText('SERIAL #VB-2026-HERITAGE-GENZ', width / 2, height - 42);
+      ctx.textAlign = 'center';
+      ctx.fillText('||| | ||||| || |||| ||||| ||| ||||| ||', width / 2, height - 48);
+      ctx.fillText('SERIAL #VB-2026-HERITAGE-GENZ', width / 2, height - 30);
 
       // 7. Trigger download
       const dataUrl = canvas.toDataURL('image/png');
@@ -214,7 +395,6 @@ export const PhotoStripPrinter: React.FC<PhotoStripPrinterProps> = ({
         </button>
 
         <div className="flex items-center gap-2">
-          <Printer className="w-4 h-4 text-[#881337]" />
           <h1 className="text-xs font-mono font-bold tracking-wider text-[#881337] uppercase">
             V-PRINT MACHINE #01
           </h1>
@@ -234,8 +414,8 @@ export const PhotoStripPrinter: React.FC<PhotoStripPrinterProps> = ({
         {/* Success Banner */}
         <div className="mb-6 bg-gradient-to-r from-rose-50 via-white to-rose-50 border border-rose-200 rounded-3xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#881337] to-[#FF7597] flex items-center justify-center text-white shadow-sm shrink-0">
-              <Sparkles className="w-5 h-5 text-rose-100" />
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#881337] to-[#FF7597] flex items-center justify-center text-white shadow-sm shrink-0 font-mono text-xs font-bold">
+              HD
             </div>
             <div>
               <span className="text-[11px] font-mono text-[#881337] font-semibold uppercase tracking-wider block">
@@ -341,29 +521,44 @@ export const PhotoStripPrinter: React.FC<PhotoStripPrinterProps> = ({
 
               {/* 4 Photo Frames */}
               <div className="space-y-3">
-                {[0, 1, 2, 3].map((poseIdx) => (
-                  <div
-                    key={poseIdx}
-                    className="relative aspect-[3/4] rounded-xl overflow-hidden bg-white border border-black/10 shadow-sm"
-                  >
-                    <AvatarCanvas
-                      garment={result.config.garment}
-                      gender={result.config.gender}
-                      fabricColor={result.config.fabricColor}
-                      selectedAccessories={result.config.selectedAccessories}
-                      poseIndex={poseIdx}
-                      isAltered={result.config.isAltered}
-                      showXRayPins={false}
-                      renderMode="photostrip"
-                      className="border-none shadow-none rounded-none aspect-auto h-full"
-                    />
+                {[0, 1, 2, 3].map((poseIdx) => {
+                  const frameData = result.capturedFrames[poseIdx];
+                  return (
+                    <div
+                      key={poseIdx}
+                      className="relative aspect-[3/4] rounded-xl overflow-hidden bg-white border border-black/10 shadow-sm"
+                    >
+                      {frameData?.imageUrl ? (
+                        <img
+                          src={frameData.imageUrl}
+                          alt={frameData.poseName || `Dáng ${poseIdx + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <AvatarCanvas
+                          garment={result.config.garment}
+                          gender={result.config.gender}
+                          fabricColor={result.config.fabricColor}
+                          fabricId={result.config.fabricId}
+                          selectedAccessories={result.config.selectedAccessories}
+                          selectedBottomId={result.config.selectedBottomId}
+                          selectedFootwearId={result.config.selectedFootwearId}
+                          poseIndex={poseIdx}
+                          isAltered={result.config.isAltered}
+                          showXRayPins={false}
+                          showSealBadge={false}
+                          renderMode="photostrip"
+                          className="border-none shadow-none rounded-none aspect-auto h-full"
+                        />
+                      )}
 
-                    {/* Frame Index Watermark */}
-                    <span className="absolute bottom-1 right-2 text-[8px] font-mono opacity-40 font-bold">
-                      0{poseIdx + 1} / 04
-                    </span>
-                  </div>
-                ))}
+                      {/* Frame Index Watermark */}
+                      <span className="absolute bottom-1 right-2 text-[8px] font-mono opacity-50 font-bold bg-white/70 px-1 py-0.5 rounded shadow-xs">
+                        0{poseIdx + 1} / 04
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Decorative Stickers layer */}
@@ -376,11 +571,42 @@ export const PhotoStripPrinter: React.FC<PhotoStripPrinterProps> = ({
               {/* Footer Exclusive Title & Cultural Score */}
               <div className="mt-3 text-center border-t border-black/10 pt-2.5">
                 <span className="font-serif-heritage font-bold text-sm block">
-                  "{result.assessment.title}"
+                  "{finalTitle}"
                 </span>
                 <span className="text-[10px] block opacity-75 mt-0.5">
-                  Điểm Văn Hóa: {result.assessment.culturalScore}/100 · {result.assessment.badge}
+                  Điểm Văn Hóa: {finalScore}/100 · {result.assessment.badge}
                 </span>
+
+                {/* Quẻ Bản Mệnh Ngũ Hành Tem Mộc Badge */}
+                {result.config.horoscopeProfile && (
+                  <div className="mt-2 py-1 px-2.5 rounded-lg bg-amber-500/10 border border-amber-600/25 text-left flex items-start gap-1.5">
+                    <span className="text-xs leading-none mt-0.5">🔮</span>
+                    <div className="text-[9px] space-y-0.5 leading-tight">
+                      <div className="font-bold text-[#881337] flex items-center gap-1">
+                        <span>{result.config.horoscopeProfile.canChi} · {result.config.horoscopeProfile.napAm}</span>
+                        <span className="px-1 py-0.2 rounded bg-rose-200/80 text-[8px] font-mono font-bold text-rose-900">
+                          MỆNH {result.config.horoscopeProfile.element.toUpperCase()}
+                        </span>
+                      </div>
+                      <p className="text-[8.5px] opacity-80 italic">
+                        Sắc phục hợp mệnh: {result.config.horoscopeProfile.luckyColorNames.slice(0, 2).join(', ')}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* AI Historical Insight Badge đính kèm trực tiếp vào dải ảnh photobooth */}
+                <div className="mt-2.5 p-2 rounded-xl bg-black/[0.04] border border-black/10 text-left">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#00F5D4] shadow-[0_0_4px_#00F5D4] animate-pulse" />
+                    <span className="text-[8px] font-mono font-bold tracking-wider uppercase opacity-75">
+                      ✦ Lịch Sử Di Sản (Gemini AI Fact)
+                    </span>
+                  </div>
+                  <p className="text-[10px] font-medium leading-relaxed italic opacity-90">
+                    "{finalHistoryFact}"
+                  </p>
+                </div>
 
                 {/* Barcode representation */}
                 <div className="mt-2 font-mono text-[9px] opacity-40 tracking-widest">
@@ -418,6 +644,90 @@ export const PhotoStripPrinter: React.FC<PhotoStripPrinterProps> = ({
                 )}
               </div>
 
+              {/* GEMINI SMART E-COMMERCE MATCHER: BẢNG BÓC TÁCH GIỎ ĐỒ */}
+              <div className="mb-5 p-4 rounded-2xl bg-gradient-to-br from-rose-50/70 via-orange-50/40 to-amber-50/60 border border-rose-200/90 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-[#EE4D2D] text-white flex items-center justify-center font-bold text-xs shadow-sm font-mono">
+                      SP
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-[#881337] uppercase tracking-wide">
+                        Gemini Smart Shopping Matcher
+                      </h4>
+                      <span className="text-[10px] text-slate-500">
+                        Bóc tách giỏ đồ theo ngân sách & sinh link Shopee chuẩn SEO
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-slate-400 block font-mono">DỰ KIẾN TỔNG:</span>
+                    <span className="text-xs font-mono font-bold text-[#881337]">
+                      {(
+                        comp?.shopping_breakdown?.total_estimated ||
+                        breakdownItems.reduce((acc, it) => acc + (it.price_est || 0), 0)
+                      ).toLocaleString('vi-VN')}{' '}
+                      đ
+                    </span>
+                  </div>
+                </div>
+
+                {/* Danh sách bóc tách từng món */}
+                <div className="space-y-2 pt-1">
+                  {breakdownItems.map((item, idx) => {
+                    const isShopee = item.action === 'MUA_SHOPEE';
+                    const isRental = item.action === 'THUÊ';
+                    const shopeeUrl = `https://shopee.vn/search?keyword=${encodeURIComponent(item.shopee_keyword || item.name)}`;
+
+                    return (
+                      <div
+                        key={idx}
+                        className="p-2.5 rounded-xl bg-white border border-rose-100 hover:border-orange-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {/* Action Badge */}
+                          <span
+                            className={`px-2 py-0.5 rounded-md text-[9px] font-bold tracking-wider shrink-0 uppercase ${
+                              isShopee
+                                ? 'bg-orange-100 text-[#EE4D2D] border border-orange-200'
+                                : isRental
+                                ? 'bg-indigo-100 text-indigo-800 border border-indigo-200'
+                                : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                            }`}
+                          >
+                            {item.action}
+                          </span>
+
+                          <div className="min-w-0">
+                            <strong className="text-xs font-semibold text-slate-900 block truncate">
+                              {item.name}
+                            </strong>
+                            <span className="text-[10px] text-slate-400 block font-mono">
+                              ~{item.price_est.toLocaleString('vi-VN')} đ
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Shopee Deeplink Button */}
+                        {item.shopee_keyword ? (
+                          <a
+                            href={shopeeUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="self-end sm:self-auto px-3 py-1.5 rounded-lg bg-[#EE4D2D] hover:bg-[#D73211] text-white text-[10px] font-semibold flex items-center gap-1.5 shadow-xs transition-colors shrink-0"
+                          >
+                            <span>Mua Shopee</span>
+                            <ExternalLink className="w-2.5 h-2.5" />
+                          </a>
+                        ) : (
+                          <span className="text-[10px] text-slate-400 italic">Có sẵn trong tủ</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Segmented Filter Control for 3 Shopping Tabs */}
               <div className="grid grid-cols-3 gap-1 p-1 bg-rose-50/70 rounded-2xl border border-rose-200/60 mb-5">
                 <button
@@ -428,7 +738,6 @@ export const PhotoStripPrinter: React.FC<PhotoStripPrinterProps> = ({
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  <Store className="w-3.5 h-3.5" />
                   <span>Thuê Cổ Phục</span>
                 </button>
 
@@ -440,7 +749,6 @@ export const PhotoStripPrinter: React.FC<PhotoStripPrinterProps> = ({
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  <ShoppingBag className="w-3.5 h-3.5" />
                   <span>Sắm Shopee</span>
                 </button>
 
@@ -452,7 +760,6 @@ export const PhotoStripPrinter: React.FC<PhotoStripPrinterProps> = ({
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  <Shirt className="w-3.5 h-3.5" />
                   <span>Tủ Đồ Có Sẵn</span>
                 </button>
               </div>
@@ -460,9 +767,24 @@ export const PhotoStripPrinter: React.FC<PhotoStripPrinterProps> = ({
               {/* TAB 1: THUÊ ĐỒ QUANH KHU VỰC (V-Rental O2O) */}
               {activeTab === 'rental' && (
                 <div className="space-y-3 animate-in fade-in duration-200">
-                  <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-                    <span>Trang phục chính: <strong>{result.config.garment.name}</strong></span>
-                    <span>Giá thuê ước tính: 100k - 200k/ngày</span>
+                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-rose-50/70 border border-rose-200">
+                    <GarmentVisual
+                      id={result.config.garment.id}
+                      name={result.config.garment.name}
+                      color={result.config.fabricColor}
+                      className="w-14 h-16 shadow-xs"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between text-xs text-slate-700">
+                        <strong className="text-slate-900 block truncate">{result.config.garment.name}</strong>
+                        <span className="font-mono font-semibold text-[#881337] flex-shrink-0">
+                          {result.config.garment.baseRentalPrice.toLocaleString('vi-VN')}đ/ngày
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 block mt-0.5">
+                        {result.config.garment.dynasty} · Màu sắc đã chọn
+                      </span>
+                    </div>
                   </div>
 
                   {result.assessment.rentalStores.map((store, idx) => (
@@ -477,13 +799,12 @@ export const PhotoStripPrinter: React.FC<PhotoStripPrinterProps> = ({
                             {store.location}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-500 flex items-center gap-1">
-                          <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                        <p className="text-[11px] text-slate-500">
                           <span>{store.address}</span>
                         </p>
                         {store.note && (
                           <p className="text-[10px] text-emerald-700 italic">
-                            💡 {store.note}
+                            {store.note}
                           </p>
                         )}
                       </div>
@@ -537,7 +858,6 @@ export const PhotoStripPrinter: React.FC<PhotoStripPrinterProps> = ({
                           rel="noopener noreferrer"
                           className="self-start sm:self-auto px-3.5 py-2 rounded-xl bg-[#EE4D2D] hover:bg-[#D73211] text-white text-xs font-semibold tactile-press flex items-center gap-1.5 shadow-sm shadow-orange-500/20"
                         >
-                          <ShoppingBag className="w-3.5 h-3.5" />
                           <span>Sắm trên Shopee</span>
                           <ExternalLink className="w-3 h-3" />
                         </a>
@@ -551,8 +871,7 @@ export const PhotoStripPrinter: React.FC<PhotoStripPrinterProps> = ({
               {activeTab === 'wardrobe' && (
                 <div className="space-y-3.5 animate-in fade-in duration-200">
                   <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 text-emerald-950 space-y-2">
-                    <h4 className="text-xs font-bold flex items-center gap-1.5 text-emerald-900">
-                      <Sparkles className="w-4 h-4 text-emerald-600" />
+                    <h4 className="text-xs font-bold text-emerald-900">
                       Gợi Ý Tiết Kiệm 0 Đồng Từ Tủ Đồ
                     </h4>
                     <p className="text-xs leading-relaxed">

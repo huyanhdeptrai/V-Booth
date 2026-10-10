@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ASSET_IMAGES } from '../data/garments';
+import { VBoothLogo } from './VBoothLogo';
+import { HeritageWikiModal } from './HeritageWikiModal';
 import {
-  Sparkles,
   Layers,
   ShieldCheck,
   PiggyBank,
@@ -14,17 +15,20 @@ import {
 
 interface LandingPageProps {
   onEnterStore: () => void;
+  onSelectGarmentAndEnter?: (garmentId: string) => void;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onEnterStore }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onEnterStore, onSelectGarmentAndEnter }) => {
+  const [isWikiOpen, setIsWikiOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-[#FFFDF9] text-[#1E1B18] selection:bg-[#FF7597]/20 selection:text-[#881337] pb-28 lg:pb-16">
       
       {/* Top Bar Contract: 3 zones */}
       <header className="sticky top-0 z-30 bg-[#FFFDF9]/90 backdrop-blur-md border-b border-rose-200/60 px-4 lg:px-8 py-3.5 flex items-center justify-between">
-        {/* Zone 1: Wordmark */}
-        <a href="#" className="text-xl font-serif-heritage font-bold tracking-tight text-[#881337]">
-          V-Booth
+        {/* Zone 1: Wordmark & Logo */}
+        <a href="#" className="h-12 flex items-center">
+          <VBoothLogo className="h-11 sm:h-12 w-auto" />
         </a>
 
         {/* Zone 2: Clean Text Nav Links */}
@@ -38,13 +42,24 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterStore }) => {
           <a href="#lookbook" className="hover:text-[#881337] transition-colors">
             Bức Tường Kỷ Niệm
           </a>
-          <a href="#pricing" className="hover:text-[#881337] transition-colors">
-            Thuê & Sắm Đồ
-          </a>
+          <button
+            type="button"
+            onClick={() => setIsWikiOpen(true)}
+            className="hover:text-[#881337] transition-colors cursor-pointer text-xs font-medium text-slate-600"
+          >
+            Từ Điển Di Sản
+          </button>
         </nav>
 
         {/* Zone 3: Primary Action */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            type="button"
+            onClick={() => setIsWikiOpen(true)}
+            className="md:hidden text-xs font-medium text-slate-600 hover:text-[#881337] px-2 py-1 transition-colors"
+          >
+            Từ Điển Di Sản
+          </button>
           <button
             onClick={onEnterStore}
             className="px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-[#881337] to-[#FF7597] rounded-xl shadow-sm hover:shadow-md tactile-press whitespace-nowrap"
@@ -74,8 +89,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterStore }) => {
             </p>
 
             {/* Unboxed Metadata Stats */}
-            <div className="flex items-center gap-4 text-xs text-slate-500 pt-1">
-              <span>04 Dáng Áo Triều Nguyễn & Bắc Bộ</span>
+            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 pt-1">
+              <span>05 Dáng Áo Cổ Truyền</span>
+              <span aria-hidden="true">·</span>
+              <span>Bói Mệnh Ngũ Hành</span>
               <span aria-hidden="true">·</span>
               <span>AI Cultural Guardian</span>
               <span aria-hidden="true">·</span>
@@ -309,6 +326,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterStore }) => {
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Heritage Wiki Modal */}
+      <HeritageWikiModal
+        isOpen={isWikiOpen}
+        onClose={() => setIsWikiOpen(false)}
+        onSelectGarment={(garmentId) => {
+          setIsWikiOpen(false);
+          if (onSelectGarmentAndEnter) {
+            onSelectGarmentAndEnter(garmentId);
+          } else {
+            onEnterStore();
+          }
+        }}
+      />
 
     </div>
   );

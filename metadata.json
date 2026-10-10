@@ -1,6 +1,6 @@
 {
   "name": "V-Booth: Tiệm Photobooth Việt Phục Ảo",
   "description": "Nền tảng Stylist Di sản, Thử đồ Đa tầng & Mua sắm Tiết kiệm cho Gen Z kết hợp AI Cultural Guardian và in dải ảnh Photobooth retro.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["camera"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

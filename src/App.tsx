@@ -11,9 +11,17 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('landing');
   const [currentConfig, setCurrentConfig] = useState<FittingConfig | null>(null);
   const [boothResult, setBoothResult] = useState<PhotoBoothResult | null>(null);
+  const [initialGarmentId, setInitialGarmentId] = useState<string | null>(null);
 
   // Transition: Landing -> Fitting Room
   const handleEnterStore = () => {
+    setCurrentScreen('fitting');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Transition: Heritage Wiki -> Fitting Room with chosen garment
+  const handleSelectGarmentAndEnter = (garmentId: string) => {
+    setInitialGarmentId(garmentId);
     setCurrentScreen('fitting');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -47,11 +55,17 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#FFFDF9] text-[#1E1B18] font-sans antialiased">
       {currentScreen === 'landing' && (
-        <LandingPage onEnterStore={handleEnterStore} />
+        <LandingPage
+          onEnterStore={handleEnterStore}
+          onSelectGarmentAndEnter={handleSelectGarmentAndEnter}
+        />
       )}
 
       {currentScreen === 'fitting' && (
-        <FittingRoom onEnterBooth={handleEnterBooth} />
+        <FittingRoom
+          onEnterBooth={handleEnterBooth}
+          initialGarmentId={initialGarmentId}
+        />
       )}
 
       {currentScreen === 'booth' && currentConfig && (
